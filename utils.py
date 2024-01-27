@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+from tensorflow import keras
 import xml.etree.ElementTree as ET
 import random
 import svgwrite
@@ -157,7 +158,7 @@ def draw_strokes_pdf(data, param, factor=10, svg_filename = 'sample_pdf.svg'):
     display(SVG(dwg.tostring()))
 
 def vectorization(c, char_dict):
-    x = np.zeros((len(c), len(char_dict) + 1), dtype=np.int)
+    x = np.zeros((len(c), len(char_dict) + 1), dtype=int)
     for i, c_i in enumerate(c):
         if c_i in char_dict.keys():
             x[i, char_dict[c_i]] = 1
@@ -332,7 +333,8 @@ class DataLoader():
             #if random.random() < (1.0/float(n_batch)): # adjust sampling probability.
                 #if this is a long datapoint, sample this data more with higher probability
             self.tick_batch_pointer()
-        return x_batch, y_batch, c_vec_batch, c_batch
+        # return x_batch, y_batch, c_vec_batch, c_batch
+        return np.array(x_batch), np.array(y_batch), np.array(c_vec_batch), np.array(c_batch)
 
     def tick_batch_pointer(self):
         self.pointer += 1
@@ -341,3 +343,17 @@ class DataLoader():
     def reset_batch_pointer(self):
         self.pointer = 0
 
+
+class DataGenerator(keras.utils.Sequence):
+    def __init__(self, data_loader):
+        self.data_loader = data_loader
+    
+    def __len__(self):
+        return self.data_loader.num_batches
+    
+    def __getitem__(self, index):
+        x, y, c_vec, c = self.data_loader.next_batch()
+        return ([x, c_vec.astype(np.float32)], y)
+    
+    def on_epoch_end(self):
+        self.data_loader.reset_batch_pointer()
